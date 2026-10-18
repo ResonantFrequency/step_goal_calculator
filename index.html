@@ -195,6 +195,22 @@
   $("date").addEventListener("input", syncDay);
   $("go").addEventListener("click", calc);
   document.addEventListener("keydown", function (e) { if (e.key === "Enter") calc(); });
+  // Remember the goal on this device only (never sent anywhere)
+  var KEY = "stepGoalCalculator.goal";
+  function loadGoal() {
+    try {
+      var saved = parseFloat(localStorage.getItem(KEY));
+      if (!isNaN(saved) && saved > 0) { $("goal").value = saved; }
+    } catch (e) { /* storage unavailable, keep default */ }
+  }
+  function saveGoal() {
+    try {
+      var g = parseFloat($("goal").value);
+      if (!isNaN(g) && g > 0) { localStorage.setItem(KEY, String(g)); }
+    } catch (e) { /* storage unavailable, ignore */ }
+  }
+  $("goal").addEventListener("input", saveGoal);
+  loadGoal();
   setToday();
 })();
 </script>
