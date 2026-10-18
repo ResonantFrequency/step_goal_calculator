@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Step Goal Calculator</title>
+<style>
+  :root {
+    --bg: #f6f8f7;
+    --surface: #ffffff;
+    --ink: #17302a;
+    --muted: #5b716a;
+    --line: #d5dfdb;
+    --accent: #1f7a5c;
+    --good: #1f7a5c;
+    --warn: #b4531a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #101a17;
+      --surface: #17241f;
+      --ink: #e6f0ec;
+      --muted: #9bb1a9;
+      --line: #2b3f38;
+      --accent: #5fc9a0;
+      --good: #5fc9a0;
+      --warn: #f0a070;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif; line-height: 1.5;
+    padding: 20px 16px 40px;
+  }
+  main { max-width: 520px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  p.sub { margin: 0 0 20px; color: var(--muted); font-size: .95rem; }
+  label { display: block; font-size: .95rem; margin: 14px 0 4px; }
+  label small { color: var(--muted); }
+  input {
+    width: 100%; padding: 12px; font-size: 1.05rem; font-family: inherit;
+    border: 1px solid var(--line); border-radius: 8px;
+    background: var(--surface); color: var(--ink);
+  }
+  input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  button {
+    margin-top: 20px; width: 100%; padding: 14px; font-size: 1.05rem;
+    font-family: inherit; font-weight: bold; color: #fff; background: var(--accent);
+    border: 0; border-radius: 8px; cursor: pointer;
+  }
+  @media (prefers-color-scheme: dark) { button { color: #0b1a15; } }
+  #out { margin-top: 24px; }
+  .big { font-size: 2.6rem; font-weight: bold; line-height: 1.1; }
+  .good { color: var(--good); }
+  .warn { color: var(--warn); }
+  .card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 10px; padding: 16px; margin-bottom: 14px;
+  }
+  .card h2 { font-size: 1rem; margin: 0 0 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: .98rem; }
+  td, th { text-align: left; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: normal; }
+  td:last-child, th:last-child { text-align: right; }
+  .note { color: var(--muted); font-size: .9rem; }
+  .err { color: var(--warn); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Step goal calculator</h1>
+  <p class="sub">Enter your own daily goal and your average so far to see how many steps you need today to keep your yearly average at that goal.</p>
+
+  <label for="goal">Your daily step goal <small>(change it to any number)</small></label>
+  <input id="goal" type="number" inputmode="numeric" min="1" value="8000">
+
+  <label for="avg">Average steps per day so far <small>(including today so far)</small></label>
+  <input id="avg" type="number" inputmode="decimal" min="0" placeholder="e.g. 8350">
+
+  <div class="row">
+    <div>
+      <label for="date">Today's date</label>
+      <input id="date" type="date">
+    </div>
+    <div>
+      <label for="doy">Day of the year</label>
+      <input id="doy" type="number" inputmode="numeric" min="1" max="366" readonly>
+    </div>
+  </div>
+
+  <button id="go" type="button">Calculate</button>
+
+  <div id="out" aria-live="polite"></div>
+</main>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var fmt = function (n) { return Math.round(n).toLocaleString("en-US"); };
+
+  function isLeap(y) { return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0; }
+
+  function dayOfYear(d) {
+    var start = Date.UTC(d.getFullYear(), 0, 0);
+    var now = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+    return Math.round((now - start) / 86400000);
+  }
+
+  function parseLocalDate(v) {
+    var p = v.split("-");
+    return new Date(+p[0], +p[1] - 1, +p[2]);
+  }
+
+  function setToday() {
+    var t = new Date();
+    var m = ("0" + (t.getMonth() + 1)).slice(-2);
+    var d = ("0" + t.getDate()).slice(-2);
+    $("date").value = t.getFullYear() + "-" + m + "-" + d;
+    syncDay();
+  }
+
+  function syncDay() {
+    if (!$("date").value) { $("doy").value = ""; return; }
+    $("doy").value = dayOfYear(parseLocalDate($("date").value));
+  }
+
+  function calc() {
+    var out = $("out");
+    var avg = parseFloat($("avg").value);
+    var goal = parseFloat($("goal").value);
+    var doy = parseInt($("doy").value, 10);
+
+    if (isNaN(avg) || avg < 0 || isNaN(goal) || goal <= 0 || isNaN(doy)) {
+      out.innerHTML = '<p class="err">Enter your average steps so far, your goal, and a valid date.</p>';
+      return;
+    }
+
+    var year = parseLocalDate($("date").value).getFullYear();
+    var daysInYear = isLeap(year) ? 366 : 365;
+    var total = avg * doy;                        // steps so far, today included
+    var shortfall = goal * doy - total;           // steps still needed today to reach the goal average
+    var remainingDays = daysInYear - doy;         // full days after today
+    var yearTotalGoal = goal * daysInYear;
+
+    var html = "";
+
+    if (shortfall <= 0) {
+      var cushion = -shortfall;
+      html += '<div class="card">';
+      html += '<h2>More steps needed today</h2>';
+      html += '<div class="big good">0</div>';
+      html += '<p>You are at or above ' + fmt(goal) + '/day right now.</p>';
+      html += '<p class="note">Cushion: you are ' + fmt(cushion) + ' steps ahead of the ' + fmt(goal) + '/day pace. You can go that far under ' + fmt(goal) + ' in total and still stay at goal.</p>';
+      html += '</div>';
+    } else {
+      html += '<div class="card">';
+      html += '<h2>More steps needed today</h2>';
+      html += '<div class="big warn">' + fmt(shortfall) + '</div>';
+      html += '<p>Walk this many more steps before midnight and your average will be back at ' + fmt(goal) + '/day.</p>';
+      html += '</div>';
+
+      if (remainingDays > 0) {
+        html += '<div class="card"><h2>If you cannot get them all today</h2>';
+        html += '<p class="note">The gap carries over. Starting tomorrow, here is the daily average that closes it:</p>';
+        html += '<table><tr><th>Spread over</th><th>Steps per day</th></tr>';
+        [1, 3, 7, 14, 30].forEach(function (n) {
+          if (n <= remainingDays) {
+            html += '<tr><td>' + n + (n === 1 ? ' day (tomorrow)' : ' days') + '</td><td>' + fmt(goal + shortfall / n) + '</td></tr>';
+          }
+        });
+        html += '</table></div>';
+      }
+    }
+
+    html += '<div class="card"><h2>Rest of the year</h2>';
+    html += '<table>';
+    html += '<tr><td>Year goal (' + daysInYear + ' days)</td><td>' + fmt(yearTotalGoal) + '</td></tr>';
+    html += '<tr><td>Steps so far (day ' + doy + ')</td><td>' + fmt(total) + '</td></tr>';
+    if (remainingDays > 0) {
+      var neededRest = (yearTotalGoal - total) / remainingDays;
+      html += '<tr><td>Days left after today</td><td>' + remainingDays + '</td></tr>';
+      var minTomorrow = Math.max(0, goal * (doy + 1) - total);
+      html += '<tr><td>Minimum steps for tomorrow to stay at goal</td><td>' + fmt(minTomorrow) + '</td></tr>';
+      html += '<tr><td>Average per day needed for the rest of the year</td><td>' + (neededRest <= 0 ? 'Goal already met' : fmt(neededRest)) + '</td></tr>';
+    } else {
+      html += '<tr><td>Steps still needed today for the year goal</td><td>' + fmt(Math.max(0, yearTotalGoal - total)) + '</td></tr>';
+    }
+    html += '</table></div>';
+
+    out.innerHTML = html;
+  }
+
+  $("date").addEventListener("input", syncDay);
+  $("go").addEventListener("click", calc);
+  document.addEventListener("keydown", function (e) { if (e.key === "Enter") calc(); });
+  setToday();
+})();
+</script>
+</body>
+</html>
