@@ -27,6 +27,17 @@ Steps still needed today = (goal x day of the year) - steps so far
 
 This assumes your average is your total steps divided by the number of days so far, with today counted as a day.
 
-Privacy
+Privacy:
 
 Everything runs in your browser. Nothing you enter is sent anywhere. Your goal is saved only in your own browser, so clearing browser data or switching devices resets it to 8,000.
+
+Date:
+
+Each time the page opens, it reads the current date from the device and fills in the date field. The day of the year updates with it, and so does the number of days left in the year. It also handles leap years.
+
+Two details:
+
+It sets the date when the page loads. If someone leaves the page open past midnight, it won’t roll over until they refresh. Reloading fixes it.
+It uses the device’s own clock and time zone, so it matches the local date for each person.
+
+The date field is still editable, so someone can pick another date to check a past or future day. The day-of-year box follows whatever date is chosen.
